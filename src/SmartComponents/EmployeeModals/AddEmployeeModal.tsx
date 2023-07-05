@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import * as React from 'react'
 import Avatar from '@mui/material/Avatar'
 import Button from '@mui/material/Button'
@@ -9,10 +10,15 @@ import Person from '@mui/icons-material/Person'
 import Typography from '@mui/material/Typography'
 import Container from '@mui/material/Container'
 import FormControl from '@mui/material/FormControl'
-import { Modal, Snackbar, Alert, Select, InputLabel, MenuItem } from '@mui/material'
+import { Modal, Snackbar, Alert, Select, InputLabel, MenuItem, FormHelperText } from '@mui/material'
+import { useForm, type SubmitHandler } from 'react-hook-form'
+import { type TypeOf } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { uploadEmployeeData } from '../../Api/api'
 import { type EmployeeInterface } from '../../DataServer/Data'
+import { employeeFormSchema } from './ModalAssets'
 
+type RegisterInput = TypeOf<typeof employeeFormSchema>
 interface AddModalProps {
   isModalOpen: boolean
   handleModalClose: () => void
@@ -22,9 +28,24 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
   const [isSuccess, setSuccess] = React.useState(false)
   const [isError, setError] = React.useState(false)
   const [gender, setGender] = React.useState<string | null>(null)
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
+
+  const {
+    register,
+    formState: { errors, isSubmitSuccessful },
+    reset,
+    handleSubmit
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(employeeFormSchema)
+  })
+
+  React.useEffect(() => {
+    if (isSubmitSuccessful) {
+      reset()
+    }
+  }, [isSubmitSuccessful])
+
+  const submitHandler: SubmitHandler<RegisterInput> = (values: any) => {
+    const data = values
     const newEmployee: EmployeeInterface = {
       name: data.get('fullname')! as string,
       jobTitle: data.get('jobTitle')! as string,
@@ -34,6 +55,7 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
 
     try {
       void uploadEmployeeData(newEmployee)
+      handleModalClose()
       setSuccess(true)
     } catch (error) {
       console.log(error)
@@ -45,7 +67,7 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
   const closeErrorMessage = (): void => { setError(false) }
   return (
     <React.Fragment>
-<Modal
+      <Modal
         open={isModalOpen}
         onClose={handleModalClose}
         aria-labelledby="modal-modal-title"
@@ -67,17 +89,19 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
           <Typography component="h1" variant="h5">
             Add new employee
           </Typography>
-          <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          <Box component="form" noValidate autoComplete='off' onSubmit={handleSubmit(submitHandler)} sx={{ mt: 3 }}>
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
                   autoComplete="full-name"
-                  name="fullname"
                   required
                   fullWidth
                   id="fullname"
                   label="Full Name"
                   autoFocus
+                  error={!(errors.fullname == null)}
+                  helperText={(errors.fullname != null) ? errors.fullname.message : ''}
+                  {...register('fullname')}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -86,8 +110,10 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
                   fullWidth
                   id="jobTitle"
                   label="Job title"
-                  name="jobTitle"
                   autoComplete="job-title"
+                  error={!(errors.jobTitle == null)}
+                  helperText={(errors.jobTitle != null) ? errors.jobTitle.message : ''}
+                  {...register('jobTitle')}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -96,8 +122,10 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
                   fullWidth
                   id="tenure"
                   label="Tenure"
-                  name="tenure"
                   autoComplete="tenure"
+                  error={!(errors.tenure == null)}
+                  helperText={(errors.tenure != null) ? errors.tenure.message : ''}
+                  {...register('tenure')}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -114,6 +142,9 @@ export default function AddEmployeeModal ({ isModalOpen, handleModalClose }: Add
                     <MenuItem value={'Female'}>Female</MenuItem>
                     <MenuItem value={'Unknown'}>Unknown</MenuItem>
                   </Select>
+                  <FormHelperText error={!(errors.gender == null)}>
+                    {(errors.gender != null) ? errors.gender.message : ''}
+                  </FormHelperText>
                 </FormControl>
               </Grid>
             </Grid>
